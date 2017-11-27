@@ -60,7 +60,7 @@ The library also supports eviction callback when an item in the map expires.
         name string
         age int
     }
-    tm := timedMap.NewTimeMap(time.Second * 3 func(key, value interface{}) {
+    tm := timedMap.NewTimeMap(time.Second * 3, func(key, value interface{}) {
         fmt.Println("expried callback:")
         fmt.Printf("%+v\n", key)
         fmt.Printf("%+v\n", value)
