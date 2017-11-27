@@ -4,6 +4,7 @@ import (
 	"testing"
 	"github.com/oaStuff/timedMap"
 	"time"
+	"fmt"
 )
 
 type user struct {
@@ -13,10 +14,10 @@ type user struct {
 
 func TestInsert(t *testing.T)  {
 
-	tm := timedMap.NewTimeMap(time.Second * 3)
-	tm.Add("one","1")
-	tm.Add("two","2")
-	tm.Add("three", "3")
+	tm := timedMap.NewTimeMap(time.Second * 3, nil)
+	tm.Put("one","1")
+	tm.Put("two","2")
+	tm.Put("three", "3")
 
 	val := tm.Get("one")
 	if val != "1" {
@@ -42,10 +43,10 @@ func TestInsert(t *testing.T)  {
 
 func TestStruct(t *testing.T)  {
 
-	tm := timedMap.NewTimeMap(time.Second * 3)
-	tm.Add("john", &user{"john mark", 30})
-	tm.Add("mary", &user{"mary jane", 26})
-	tm.Add("paul", &user{"paul frank", 19})
+	tm := timedMap.NewTimeMap(time.Second * 3, nil)
+	tm.Put("john", &user{"john mark", 30})
+	tm.Put("mary", &user{"mary jane", 26})
+	tm.Put("paul", &user{"paul frank", 19})
 
 	val := tm.Get("unkown")
 	if nil != val {
@@ -60,10 +61,10 @@ func TestStruct(t *testing.T)  {
 
 func TestRemove(t *testing.T)  {
 
-	tm := timedMap.NewTimeMap(time.Minute * 3)
-	tm.Add("1", "one")
-	tm.Add("2", "two")
-	tm.Add("3","three")
+	tm := timedMap.NewTimeMap(time.Minute * 3, nil)
+	tm.Put("1", "one")
+	tm.Put("2", "two")
+	tm.Put("3","three")
 
 	val := tm.Get("2")
 	if "two" != val {
@@ -79,10 +80,10 @@ func TestRemove(t *testing.T)  {
 
 func TestContains(t *testing.T)  {
 
-	tm := timedMap.NewTimeMap(time.Minute * 3)
-	tm.Add("1", "one")
-	tm.Add("2", "two")
-	tm.Add("3","three")
+	tm := timedMap.NewTimeMap(time.Minute * 3, nil)
+	tm.Put("1", "one")
+	tm.Put("2", "two")
+	tm.Put("3","three")
 
 	if !tm.Contains("1") {
 		t.Error("the map is suppose to contain one")
@@ -96,12 +97,17 @@ func TestContains(t *testing.T)  {
 
 func TestExpiry(t *testing.T)  {
 
-	tm := timedMap.NewTimeMap(time.Second * 3)
-	tm.Add("one","1")
-	tm.Add("two","2")
+	tm := timedMap.NewTimeMap(time.Second * 3, func(key, value interface{}) {
+		fmt.Println("expried callback:")
+		fmt.Printf("%+v\n", key)
+		fmt.Printf("%+v\n", value)
+	})
+
+	tm.Put("one","1")
+	tm.Put("two","2")
 
 	time.Sleep(time.Second * 2)
-	tm.Add("three", "3")
+	tm.Put("three", "3")
 
 	time.Sleep(time.Second * 2)
 

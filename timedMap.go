@@ -6,24 +6,24 @@ import (
 	"container/list"
 )
 
+type EvictionNotify func (key, value interface{})
+
 type TimedMap struct {
-	data sync.Map
-	timerList *list.List
-	storageTime time.Duration
+	data 			sync.Map
+	timerList 		*list.List
+	storageTime 	time.Duration
+	emptyCond 		*sync.Cond
+	callback 		EvictionNotify
 }
 
-var emptyCond *sync.Cond
-
-func init()  {
-	emptyCond = sync.NewCond(&sync.Mutex{})
-}
 
 // Creates and new TimedMap with the desired storage time.
 // The storageTime determines how long a value will be valid in the TimedMap
-func NewTimeMap(storageTime time.Duration)  *TimedMap {
+func NewTimeMap(storageTime time.Duration, callback EvictionNotify)  *TimedMap {
 	l := list.New()
 	l.Init()
-	tm := &TimedMap{data:sync.Map{}, timerList: l, storageTime:storageTime}
+	tm := &TimedMap{data:sync.Map{}, timerList: l, storageTime:storageTime, emptyCond:sync.NewCond(&sync.Mutex{}),
+					callback:callback}
 	go cleaner(tm)
 
 	return tm
@@ -31,11 +31,11 @@ func NewTimeMap(storageTime time.Duration)  *TimedMap {
 
 
 // Adds a key value pair to the timed map.
-func (tm *TimedMap) Add(key, value interface{})  {
+func (tm *TimedMap) Put(key, value interface{})  {
 	expiry := time.Now().Add(tm.storageTime)
 	ele := tm.timerList.PushBack(newTimerListData(key,expiry))
 	tm.data.Store(key,newTimedMapData(value,expiry,ele))
-	emptyCond.Signal()
+	tm.emptyCond.Signal()
 }
 
 
@@ -84,14 +84,22 @@ func cleaner(tm *TimedMap)  {
 	for {
 		el := tm.timerList.Front()
 		for  ; nil == el ; el = tm.timerList.Front() {
-			emptyCond.L.Lock()
-			emptyCond.Wait()
-			emptyCond.L.Unlock()
+			tm.emptyCond.L.Lock()
+			tm.emptyCond.Wait()
+			tm.emptyCond.L.Unlock()
 		}
 
-		time.Sleep(el.Value.(*timerListData).expiryTime.Sub(time.Now()))
-		tm.data.Delete(el.Value.(*timerListData).key)
+		expiry  := el.Value.(*timerListData).expiryTime
+		if !time.Now().After(expiry) {
+			time.Sleep(expiry.Sub(time.Now()))
+		}
+		key := el.Value.(*timerListData).key
+		val,_ := tm.data.Load(key)
+		tm.data.Delete(key)
 		tm.timerList.Remove(el)
+		if tm.callback != nil {
+			go tm.callback(key, val.(*timedMapData).itemData)
+		}
 	}
 }
 
